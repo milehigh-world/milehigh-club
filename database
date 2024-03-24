@@ -1,0 +1,51 @@
+from flask import Flask, request, jsonify
+from sqlalchemy import create_engine, Column, String, Integer
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.exc import IntegrityError
+
+# Initialize Flask app
+app = Flask(__name__)
+
+# Database configuration
+db_uri = 'sqlite:///milehigh.db'
+engine = create_engine(db_uri)
+Base = declarative_base()
+
+# Define User model
+class User(Base):
+    __tablename__ = 'users'
+    id = Column(Integer, primary_key=True)
+    username = Column(String(50), unique=True, nullable=False)
+    email = Column(String(100), unique=True, nullable=False)
+    password = Column(String(100), nullable=False)
+
+# Create database tables
+Base.metadata.create_all(engine)
+
+# Function to handle user registration
+@app.route('/register', methods=['POST'])
+def register_user():
+    data = request.json
+    username = data.get('username')
+    email = data.get('email')
+    password = data.get('password')
+
+    # Validate inputs
+    if not username or not email or not password:
+        return jsonify({'error': 'All fields are required'}), 400
+
+    # Create user account
+    try:
+        user = User(username=username, email=email, password=password)
+        Session = sessionmaker(bind=engine)
+        session = Session()
+        session.add(user)
+        session.commit()
+        session.close()
+        return jsonify({'message': 'User registration successful'}), 201
+    except IntegrityError:
+        return jsonify({'error': 'Username or email already exists'}), 400
+
+if __name__ == '__main__':
+    app.run(debug=True)
